@@ -1,0 +1,10 @@
+@media print {
+  body { background: white; color: black; }
+  .topbar, .menu, .user, .no-print { display: none !important; }
+  .container { margin: 0; max-width: none; padding: 0; }
+  .panel { border: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #333; padding: 6px; }
+  .right { text-align: right; }
+}
+
