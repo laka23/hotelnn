@@ -1,0 +1,145 @@
+-- Schema for Mobile Phone Shop POS
+-- MySQL/MariaDB
+
+SET NAMES utf8mb4;
+SET time_zone = '+00:00';
+
+CREATE TABLE IF NOT EXISTS users (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	username VARCHAR(64) NOT NULL UNIQUE,
+	password_hash VARCHAR(255) NOT NULL,
+	role ENUM('admin','user') NOT NULL DEFAULT 'admin',
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS settings (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	shop_name VARCHAR(255) NOT NULL,
+	shop_address VARCHAR(255) NOT NULL,
+	shop_phone VARCHAR(64) NOT NULL,
+	currency_symbol VARCHAR(8) NOT NULL DEFAULT '$',
+	tax_rate DECIMAL(6,3) NOT NULL DEFAULT 0.000,
+	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS products (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	sku VARCHAR(64) NOT NULL UNIQUE,
+	name VARCHAR(255) NOT NULL,
+	brand VARCHAR(128) DEFAULT NULL,
+	model VARCHAR(128) DEFAULT NULL,
+	imei_required TINYINT(1) NOT NULL DEFAULT 0,
+	cost_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+	sell_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+	quantity INT NOT NULL DEFAULT 0,
+	low_stock_threshold INT NOT NULL DEFAULT 0,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS customers (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	name VARCHAR(255) NOT NULL,
+	phone VARCHAR(64) DEFAULT NULL,
+	email VARCHAR(128) DEFAULT NULL,
+	address VARCHAR(255) DEFAULT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS sales (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	invoice_no VARCHAR(64) NOT NULL UNIQUE,
+	customer_id INT DEFAULT NULL,
+	subtotal DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+	tax DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+	discount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+	total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+	paid_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+	payment_method VARCHAR(32) DEFAULT 'cash',
+	notes TEXT,
+	user_id INT DEFAULT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS sale_items (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	sale_id INT NOT NULL,
+	product_id INT NOT NULL,
+	quantity INT NOT NULL,
+	unit_price DECIMAL(12,2) NOT NULL,
+	total_price DECIMAL(12,2) NOT NULL,
+	FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+	FOREIGN KEY (product_id) REFERENCES products(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS repairs (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	ticket_no VARCHAR(64) NOT NULL UNIQUE,
+	customer_id INT DEFAULT NULL,
+	device_brand VARCHAR(128) DEFAULT NULL,
+	device_model VARCHAR(128) DEFAULT NULL,
+	imei VARCHAR(64) DEFAULT NULL,
+	problem_description TEXT,
+	estimated_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+	deposit DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+	status ENUM('received','in_progress','ready','picked_up','cancelled') NOT NULL DEFAULT 'received',
+	parts_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+	labor_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+	total_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+	user_id INT DEFAULT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS repair_parts (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	repair_id INT NOT NULL,
+	product_id INT NOT NULL,
+	quantity INT NOT NULL,
+	unit_price DECIMAL(12,2) NOT NULL,
+	total_price DECIMAL(12,2) NOT NULL,
+	FOREIGN KEY (repair_id) REFERENCES repairs(id) ON DELETE CASCADE,
+	FOREIGN KEY (product_id) REFERENCES products(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS stock_movements (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	product_id INT NOT NULL,
+	change_qty INT NOT NULL,
+	reason VARCHAR(64) NOT NULL,
+	note VARCHAR(255) DEFAULT NULL,
+	user_id INT DEFAULT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (product_id) REFERENCES products(id),
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS sequences (
+	name VARCHAR(64) PRIMARY KEY,
+	current_value INT NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO sequences (name, current_value) VALUES
+	('invoice_no', 1000),
+	('ticket_no', 1000)
+ON DUPLICATE KEY UPDATE current_value = current_value;
+
+INSERT INTO settings (shop_name, shop_address, shop_phone, currency_symbol, tax_rate)
+VALUES ('My Mobile Shop', '123 Market Street, City', '+1 234 567 890', '$', 0.000)
+ON DUPLICATE KEY UPDATE shop_name = VALUES(shop_name);
+
+-- admin/admin123
+INSERT INTO users (username, password_hash, role) VALUES
+	('admin', '$2y$10$iy1kJw1R3Lw0xGxjYVvU2e8vWcQW2tRVpZ5y5m1q8s5Ode2XKzYkW', 'admin')
+ON DUPLICATE KEY UPDATE role = 'admin';
+
+-- Seed example products
+INSERT INTO products (sku, name, brand, model, imei_required, cost_price, sell_price, quantity, low_stock_threshold) VALUES
+('ACC-USB-C-1M', 'USB-C Cable 1m', 'Generic', NULL, 0, 2.00, 7.99, 50, 5),
+('SCRN-IPH-11', 'iPhone 11 Screen', 'Apple', 'iPhone 11', 0, 45.00, 99.00, 10, 2),
+('BAT-SAM-S10', 'Samsung S10 Battery', 'Samsung', 'S10', 0, 12.00, 39.00, 8, 2),
+('PHONE-NOK-105', 'Nokia 105 (2023)', 'Nokia', '105', 0, 18.00, 29.00, 5, 1);
